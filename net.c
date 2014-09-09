@@ -90,6 +90,13 @@
 #if defined(HAVE_LINUX_ICMP_H)
 # include <linux/icmp.h>
 #endif
+#if defined(HAVE_BLUETOOTH_BLUETOOTH_H)
+# include <bluetooth/bluetooth.h>
+# include <bluetooth/rfcomm.h>
+# include <bluetooth/l2cap.h>
+# include <bluetooth/sco.h>
+# include <bluetooth/hci.h>
+#endif
 #ifndef PF_UNSPEC
 # define PF_UNSPEC AF_UNSPEC
 #endif
@@ -109,6 +116,8 @@
 #ifdef PF_NETLINK
 #include "xlat/netlink_protocols.h"
 #endif
+
+#include "xlat/bt_protocols.h"
 
 #include "xlat/msg_flags.h"
 #include "xlat/sockoptions.h"
@@ -176,6 +185,12 @@ printsock(struct tcb *tcp, long addr, int addrlen)
 #endif
 #ifdef AF_NETLINK
 		struct sockaddr_nl nl;
+#endif
+#if defined(HAVE_BLUETOOTH_BLUETOOTH_H)
+		struct sockaddr_sco sco;
+		struct sockaddr_rc rc;
+		struct sockaddr_l2 l2;
+		struct sockaddr_hci hci;
 #endif
 	} addrbuf;
 	char string_addr[100];
@@ -290,6 +305,31 @@ printsock(struct tcb *tcp, long addr, int addrlen)
 #endif /* AF_NETLINK */
 	/* AF_AX25 AF_APPLETALK AF_NETROM AF_BRIDGE AF_AAL5
 	AF_X25 AF_ROSE etc. still need to be done */
+
+#if defined(HAVE_BLUETOOTH_BLUETOOTH_H)
+	case AF_BLUETOOTH:
+
+		tprintf("{sco_bdaddr=%02X:%02X:%02X:%02X:%02X:%02X} or ",
+			addrbuf.sco.sco_bdaddr.b[0], addrbuf.sco.sco_bdaddr.b[1],
+			addrbuf.sco.sco_bdaddr.b[2], addrbuf.sco.sco_bdaddr.b[3],
+			addrbuf.sco.sco_bdaddr.b[4], addrbuf.sco.sco_bdaddr.b[5]);
+
+		tprintf("{rc_bdaddr=%02X:%02X:%02X:%02X:%02X:%02X, rc_channel=%d} or ",
+			addrbuf.rc.rc_bdaddr.b[0], addrbuf.rc.rc_bdaddr.b[1],
+			addrbuf.rc.rc_bdaddr.b[2], addrbuf.rc.rc_bdaddr.b[3],
+			addrbuf.rc.rc_bdaddr.b[4], addrbuf.rc.rc_bdaddr.b[5],
+			addrbuf.rc.rc_channel);
+
+		tprintf("{l2_psm=htobs(%d), l2_bdaddr=%02X:%02X:%02X:%02X:%02X:%02X, l2_cid=htobs(%d)} or ",
+			btohs(addrbuf.l2.l2_psm), addrbuf.l2.l2_bdaddr.b[0],
+			addrbuf.l2.l2_bdaddr.b[1], addrbuf.l2.l2_bdaddr.b[2],
+			addrbuf.l2.l2_bdaddr.b[3], addrbuf.l2.l2_bdaddr.b[4],
+			addrbuf.l2.l2_bdaddr.b[5], btohs(addrbuf.l2.l2_cid));
+
+		tprintf("{hci_dev=%d}",	 btohs(addrbuf.hci.hci_dev));
+
+		break;
+#endif
 
 	default:
 		tprints("sa_data=");
@@ -533,6 +573,9 @@ sys_socket(struct tcb *tcp)
 			printxval(netlink_protocols, tcp->u_arg[2], "NETLINK_???");
 			break;
 #endif
+		case PF_BLUETOOTH:
+			printxval(bt_protocols, tcp->u_arg[2], "IPPROTO_???");
+			break;
 		default:
 			tprintf("%lu", tcp->u_arg[2]);
 			break;
